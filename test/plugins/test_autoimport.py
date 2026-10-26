@@ -9,6 +9,7 @@ import parso
 import pytest
 from rope.base.exceptions import InterruptedTaskError
 from rope.base.resources import Resource
+from rope.contrib.autoimport.defs import SearchResult, Source
 
 from rols import IS_WIN, lsp, uris
 from rols.config.config import Config
@@ -16,6 +17,7 @@ from rols.plugins._rope_task_handle import PylspTaskHandle
 from rols.plugins.rope_autoimport import (
     AutoimportCache,
     _get_score,
+    _process_statements,
     _should_insert,
     cache,
     get_name_or_module,
@@ -29,6 +31,58 @@ from test.test_notebook_document import wait_for_condition
 from test.test_utils import send_initialize_request, send_notebook_did_open
 
 DOC_URI = uris.from_fs_path(__file__)
+
+
+@pytest.mark.parametrize("feature", ["completions", "code_actions"])
+def test_suggestions_share_one_insertion_lookup(feature):
+    autoimport = Mock()
+    autoimport.find_insertion_line.return_value = 3
+    document = Mock(source="import os\n\ndata")
+    suggestions = [
+        SearchResult(
+            f"from example import data_{index}",
+            f"data_{index}",
+            Source.PROJECT.value,
+            lsp.CompletionItemKind.Function,
+        )
+        for index in range(100)
+    ]
+    results = list(
+        _process_statements(suggestions, DOC_URI, "data", autoimport, document, feature)
+    )
+    assert len(results) == 100
+    autoimport.find_insertion_line.assert_called_once_with(document.source)
+    for result, suggestion in zip(results, suggestions):
+        edits = (
+            result["additionalTextEdits"]
+            if feature == "completions"
+            else result["edit"]["changes"][DOC_URI]
+        )
+        assert edits == [
+            {
+                "range": {
+                    "start": {"line": 2, "character": 0},
+                    "end": {"line": 2, "character": 0},
+                },
+                "newText": suggestion.import_statement + "\n",
+            }
+        ]
+
+
+@pytest.mark.parametrize("filtered", [False, True])
+def test_no_insertion_lookup_without_accepted_suggestions(filtered):
+    autoimport = Mock()
+    autoimport.find_insertion_line.return_value = 3
+    suggestions = (
+        [SearchResult("import data", "data", Source.PROJECT.value, 9)]
+        if filtered
+        else []
+    )
+    with patch("rols.plugins.rope_autoimport._get_score", return_value=100001):
+        assert not list(
+            _process_statements(suggestions, DOC_URI, "data", autoimport, Mock())
+        )
+    autoimport.find_insertion_line.assert_not_called()
 
 
 def contains_autoimport_completion(suggestion: dict[str, Any], module: str) -> bool:

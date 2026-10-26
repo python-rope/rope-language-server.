@@ -253,16 +253,20 @@ def _process_statements(
     document: Document,
     feature: str = "completions",
 ) -> Generator[dict[str, Any], None, None]:
+    edit_range = None
     for suggestion in suggestions:
-        insert_line = autoimport.find_insertion_line(document.source) - 1
-        start = {"line": insert_line, "character": 0}
-        edit_range = {"start": start, "end": start}
-        edit = {"range": edit_range, "newText": suggestion.import_statement + "\n"}
         score = _get_score(
             suggestion.source, suggestion.import_statement, suggestion.name, word
         )
         if score > _score_max:
             continue
+        if edit_range is None:
+            # Rope parses the document to find this position. It is the same
+            # for every suggestion, so compute it once, only if needed.
+            insert_line = autoimport.find_insertion_line(document.source) - 1
+            start = {"line": insert_line, "character": 0}
+            edit_range = {"start": start, "end": start}
+        edit = {"range": edit_range, "newText": suggestion.import_statement + "\n"}
         # TODO make this markdown
         if feature == "completions":
             yield {
