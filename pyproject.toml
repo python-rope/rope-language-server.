@@ -25,7 +25,8 @@ dependencies = [
 dynamic = ["version"]
 
 [project.urls]
-Homepage = "https://github.com/python-lsp/rope-language-server"
+Homepage = "https://codefloe.com/mcepl/rope-language-server"
+Issues = "https://codefloe.com/mcepl/rope-language-server/issues"
 
 [project.optional-dependencies]
 all = [

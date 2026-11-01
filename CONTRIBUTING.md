@@ -1,40 +1,69 @@
-# Setup the environment
+# Contributing
 
-1. Clone the repo: `git clone git@github.com:python-lsp/python-lsp-server.git`
-2. Create the virtual environment: `python -m venv .venv`
-3. Activate: `source .venv/bin/activate`
-4. Install an editable installation: `pip install -e .`
-    - This will ensure you'll see your edits immediately without reinstalling the project
-5. Configure your editor to point the pylsp executable to the one in `.venv`
+## Set up the checkout
 
-## Trying out if it works
+Clone the repository:
 
-Go to file `rols/python_lsp.py`, function `start_io_lang_server`,
-and on the first line of the function, add some logging:
-
-```py
-log.info("It works!")
+```sh
+git clone https://codefloe.com/mcepl/rope-language-server.git
+cd rope-language-server
 ```
 
-Save the file, restart the LSP server and you should see the log line:
+Install the development dependencies using distribution packages, or use an
+editable pip installation:
 
+```sh
+python3 -m pip install -e ".[all,websockets,test]"
 ```
-2023-10-12 16:46:38,320 CEST - INFO - rols._utils - It works!
+
+The editable installation loads code from your checkout, so source changes do not
+require reinstalling the package. Configure your editor to launch `rols`. Restart
+its language-server process after changing code.
+
+Without an editable installation, run `python3 -m rols` from the repository
+directory to use the checkout directly.
+
+Check the executable and enable logging when trying a change:
+
+```sh
+python3 -m rols --help
+python3 -m rols -v --log-file /tmp/rols.log
 ```
 
-Now the project is setup in a way you can quickly iterate change you want to add.
+The server waits for LSP messages over standard input. Launch it through your
+editor when testing editor behaviour. Use `-vv` for debug logging.
 
-# Running tests
+## Run tests
 
-1. Install runtime dependencies: `pip install .[all]`
-2. Install test dependencies: `pip install .[test]`
-3. Run `pytest`: `pytest -v`
+```sh
+python3 -m pytest
+```
 
-## Useful pytest options
+Useful pytest options:
 
-- To run a specific test file, use `pytest test/test_utils.py`
-- To run a specific test function within a test file,
-  use `pytest test/test_utils.py::test_debounce`
-- To run tests matching a certain expression, use `pytest -k format`
-- To increase verbosity of pytest, use `pytest -v` or `pytest -vv`
-- To enter a debugger on failed tests, use `pytest --pdb`
+- Run a specific file with `python3 -m pytest test/test_utils.py`.
+- Run a specific function with `python3 -m pytest test/test_utils.py::test_debounce`.
+- Match test names with `python3 -m pytest -k format`.
+- Increase verbosity with `python3 -m pytest -v` or `python3 -m pytest -vv`.
+- Enter a debugger on failure with `python3 -m pytest --pdb`.
+
+For streamed cancellation tests and a headless Neovim check, see
+[docs/cancellation-testing.md](docs/cancellation-testing.md).
+
+## Format code and update configuration docs
+
+Use the same Black version as CI:
+
+```sh
+python3 -m pip install black==25.11.0
+python3 -m black --check .
+```
+
+Run `python3 -m black .` to apply formatting. Black is the development formatter;
+this does not remove users' option to select Ruff for signature formatting.
+
+After changing `rols/config/schema.json`, regenerate the configuration reference:
+
+```sh
+python3 scripts/jsonschema2md.py rols/config/schema.json CONFIGURATION.md
+```

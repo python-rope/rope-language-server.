@@ -1,173 +1,189 @@
-# Python LSP Server
+# Rope language server
 
-[![image](https://github.com/python-ls/python-ls/workflows/Linux%20tests/badge.svg)](https://github.com/python-ls/python-ls/actions?query=workflow%3A%22Linux+tests%22) [![image](https://github.com/python-ls/python-ls/workflows/Mac%20tests/badge.svg)](https://github.com/python-ls/python-ls/actions?query=workflow%3A%22Mac+tests%22) [![image](https://github.com/python-ls/python-ls/workflows/Windows%20tests/badge.svg)](https://github.com/python-ls/python-ls/actions?query=workflow%3A%22Windows+tests%22) [![image](https://img.shields.io/github/license/python-ls/python-ls.svg)](https://github.com/python-ls/python-ls/blob/master/LICENSE)
+A Python 3.9+ implementation of the
+[Language Server Protocol](https://microsoft.github.io/language-server-protocol/)
+using [Rope](https://github.com/python-rope/rope) for completion, renaming,
+definitions, hover, references, signature help and symbols.
 
-A Python 3.11+ implementation of the [Language Server Protocol](https://github.com/Microsoft/language-server-protocol).
+Development and issue tracking are on
+[Codefloe](https://codefloe.com/mcepl/rope-language-server), with a
+[GitHub mirror](https://github.com/python-rope/rope-language-server).
+See the [CI runs](https://codefloe.com/mcepl/rope-language-server/actions) for
+current test results.
 
 ## Installation
 
-The base language server uses
-[Rope](https://github.com/python-rope/rope) for most of its
-functinality: Completions, renaming, Definitions, Hover, References,
-Signature Help, and Symbols:
+Use distribution packages where available, or install with pip:
 
-```
-pip install rope-language-server
-```
-This will expose the command `rols` on your PATH. Confirm that installation succeeded by running `rols --help`.
-
-If the respective dependencies are found, the following optional providers will be enabled:
-- [Pyflakes](https://github.com/PyCQA/pyflakes) linter to detect various errors
-- [McCabe](https://github.com/PyCQA/mccabe) linter for complexity checking
-- [pycodestyle](https://github.com/PyCQA/pycodestyle) linter for style checking
-- [pydocstyle](https://github.com/PyCQA/pydocstyle) linter for docstring style checking (disabled by default)
-- [autopep8](https://github.com/hhatto/autopep8) for code formatting
-- [YAPF](https://github.com/google/yapf) for code formatting (preferred over autopep8)
-- [flake8](https://github.com/pycqa/flake8) for error checking (disabled by default)
-- [pylint](https://github.com/PyCQA/pylint) for code linting (disabled by default)
-
-Optional providers can be installed using the `extras` syntax. To install [YAPF](https://github.com/google/yapf) formatting for example:
-
-```
-pip install "rope-language-server[yapf]"
+```sh
+python3 -m pip install rope-language-server
+rols --help
 ```
 
-All optional providers can be installed using:
+Configure your editor to launch `rols`. It communicates over standard input and
+output by default. The libraries you want Rope to analyse must be available to
+the Python interpreter running `rols`.
 
+The following optional providers are loaded when their dependencies are installed.
+Some require explicit enabling in the editor's settings:
+
+- [Pyflakes](https://github.com/PyCQA/pyflakes) detects errors.
+- [McCabe](https://github.com/PyCQA/mccabe) checks complexity.
+- [pycodestyle](https://github.com/PyCQA/pycodestyle) checks style.
+- [pydocstyle](https://github.com/PyCQA/pydocstyle) checks docstring style and is disabled by default.
+- [autopep8](https://github.com/hhatto/autopep8) formats code.
+- [YAPF](https://github.com/google/yapf) formats code and takes precedence over autopep8.
+- [flake8](https://github.com/pycqa/flake8) checks errors and style and is disabled by default.
+- [pylint](https://github.com/PyCQA/pylint) checks code and is disabled by default.
+
+Install a provider with the matching extra, for example:
+
+```sh
+python3 -m pip install "rope-language-server[yapf]"
 ```
-pip install "rope-language-server[all]"
+
+Install all optional linting and formatting providers with:
+
+```sh
+python3 -m pip install "rope-language-server[all]"
 ```
 
-If you get an error similar to `'install_requires' must be a string or list of strings` then please upgrade setuptools before trying again.
+### Third-party plugins
 
-```
-pip install -U setuptools
-```
+These integrations are useful references for additional tools:
 
-### 3rd Party Plugins
+- [Mypy integration](https://github.com/python-lsp/pylsp-mypy) for type checking.
+- [python-lsp-isort](https://github.com/chantera/python-lsp-isort) for sorting imports with [isort](https://github.com/PyCQA/isort).
+- [python-lsp-black](https://github.com/python-lsp/python-lsp-black) for formatting with [Black](https://github.com/psf/black).
+- [pyls-memestra](https://github.com/QuantStack/pyls-memestra) for detecting deprecated APIs.
+- [python-lsp-ruff](https://github.com/python-lsp/python-lsp-ruff) for linting with [Ruff](https://github.com/astral-sh/ruff).
 
-Installing these plugins will add extra functionality to the language server:
-
-- [rols-mypy](https://github.com/Richardk2n/rols-mypy): [MyPy](http://mypy-lang.org/) type checking for Python >=3.8.
-- [python-lsp-isort](https://github.com/chantera/python-lsp-isort): code formatting using [isort](https://github.com/PyCQA/isort) (automatic import sorting).
-- [python-lsp-black](https://github.com/python-lsp/python-lsp-black): code formatting using [Black](https://github.com/psf/black).
-- [pyls-memestra](https://github.com/QuantStack/pyls-memestra): detecting the use of deprecated APIs.
-- [python-lsp-ruff](https://github.com/python-lsp/python-lsp-ruff): Extensive and fast linting using [ruff](https://github.com/charliermarsh/ruff).
-
-Please see the above repositories for examples on how to write plugins for the Python LSP Server.
-
-[cookiecutter-rols-plugin](https://github.com/python-lsp/cookiecutter-rols-plugin) is a [cookiecutter](https://cookiecutter.readthedocs.io/) template for setting up a basic plugin project for rope-language-server. It documents all the essentials you need to know to kick start your own plugin project.
-
-Please file an issue if you require assistance writing a plugin.
+Installing a plugin written for another server does not automatically make it
+available here. Rope language server discovers plugins through the `rols`
+entry-point group and uses `rols_*` hooks. Plugins must implement that interface.
+See the [built-in plugins](rols/plugins), [hook specifications](rols/hookspecs.py)
+and [entry-point declarations](pyproject.toml) for examples.
 
 ## Configuration
 
-Like all language servers, configuration can be passed from the client that talks to this server (i.e. your editor/IDE or other tool that has the same purpose). The details of how this is done depend on the editor or plugin that you are using to communicate with `rope-language-server`. The configuration options available at that level are documented in [`CONFIGURATION.md`](https://github.com/python-lsp/rope-language-server/blob/develop/CONFIGURATION.md).
+Pass settings from your editor under the `rols` namespace. The available options
+are documented in [CONFIGURATION.md](CONFIGURATION.md). For example, to enable
+[Rope autoimport](docs/autoimport.md):
 
-`rope-language-server` depends on other tools, like flake8 and pycodestyle. These tools can be configured via settings passed from the client (as above), or alternatively from other configuration sources. The following sources are available:
+```json
+{
+  "rols": {
+    "plugins": {
+      "rope_autoimport": {
+        "enabled": true
+      }
+    }
+  }
+}
+```
 
-- `pycodestyle`: discovered in `~/.config/pycodestyle`, `setup.cfg`, `tox.ini` and `pycodestyle.cfg`.
-- `flake8`: discovered in `.flake8`, `setup.cfg` and `tox.ini`
+The server also reads configuration for its linting tools:
 
-The default configuration sources are `pycodestyle` and `pyflakes`. If you would like to use `flake8`, you will need to:
+- `pycodestyle` reads `~/.config/pycodestyle`, `setup.cfg`, `tox.ini` and `pycodestyle.cfg`.
+- `flake8` reads `.flake8`, `setup.cfg` and `tox.ini` in the project.
 
-1. Disable `pycodestyle`, `mccabe`, and `pyflakes`, by setting their corresponding `enabled` configurations, e.g. `rols.plugins.pycodestyle.enabled`, to `false`. This will prevent duplicate linting messages as flake8 includes these tools.
-1. Set `rols.plugins.flake8.enabled` to `true`.
-1. Change the `rols.configurationSources` setting (in the value passed in from your client) to `['flake8']` in order to use the flake8 configuration instead.
+The default configuration source is `pycodestyle`. To use `flake8`:
 
-The configuration options available in these config files (`setup.cfg` etc) are documented in the relevant tools:
+1. Install the `flake8` extra.
+2. Disable `rols.plugins.pycodestyle.enabled`, `rols.plugins.mccabe.enabled` and
+   `rols.plugins.pyflakes.enabled` to avoid duplicate diagnostics.
+3. Set `rols.plugins.flake8.enabled` to `true`.
+4. Set `rols.configurationSources` to `["flake8"]`.
+
+See the tools' own documentation for their configuration-file options:
 
 - [flake8 configuration](https://flake8.pycqa.org/en/latest/user/configuration.html)
 - [pycodestyle configuration](https://pycodestyle.pycqa.org/en/latest/intro.html#configuration)
 
-Overall configuration is computed first from user configuration (in home directory), overridden by configuration passed in by the language client, and then overridden by configuration discovered in the workspace.
+Settings are merged in this order, with later values overriding earlier ones:
+plugin defaults and initialisation options, editor settings, user configuration
+files, then project configuration files.
 
-As an example, to change the list of errors that pycodestyle will ignore, assuming you are using the `pycodestyle` configuration source (the default), you can:
+For example, pycodestyle ignores can be set in the editor with
+`rols.plugins.pycodestyle.ignore`, or in `~/.config/pycodestyle` or a project
+configuration file:
 
-1. Add the following to your ~/.config/pycodestyle:
-
-   ```
-   [pycodestyle]
-   ignore = E226,E302,E41
-   ```
-
-2. Set the `rols.plugins.pycodestyle.ignore` config value from your editor
-3. Same as 1, but add to `setup.cfg` file in the root of the project.
-
-
-Python LSP Server can communicate over WebSockets when configured as follows:
-
-```
-rols --ws --port [port]
+```ini
+[pycodestyle]
+ignore = E226,E302,E41
 ```
 
-The following libraries are required for Web Sockets support:
-- [websockets](https://websockets.readthedocs.io/en/stable/) for Python LSP Server Web sockets using websockets library. refer [Websockets installation](https://websockets.readthedocs.io/en/stable/intro/index.html#installation) for more details
+### WebSockets
 
-You can install this dependency with command below:
+Install the [WebSockets](https://websockets.readthedocs.io/en/stable/) extra and
+start the server with a port number:
 
+```sh
+python3 -m pip install "rope-language-server[websockets]"
+rols --ws --port 2087
 ```
-pip install 'rope-language-server[websockets]'
-```
 
-## LSP Server Features
+## LSP features
 
-* Auto Completion
-* [Autoimport](docs/autoimport.md)
-* Code Linting
-* Code actions
-* Signature Help
-* Go to definition
-* Hover
-* Find References
-* Document Symbols
-* Document Formatting
-* Code folding
-* Multiple workspaces
+- Completion
+- [Autoimport](docs/autoimport.md), disabled by default
+- Code linting
+- Code actions
+- Renaming
+- Signature help
+- Go to definition
+- Hover
+- Find references
+- Document symbols
+- Document formatting
+- Code folding
+- Multiple workspaces
 
 ## Development
 
-Dev install
-
-```
-# (optional) create conda env
-conda create --name rope-language-server python=3.11 -y
-conda activate rope-language-server
-
-pip install -e ".[all,websockets,test]"
-```
-
-Run server with ws
-
-```
-rols --ws -v  # Info level logging
-rols --ws -vv # Debug level logging
-```
-
-To run the test suite:
+See [CONTRIBUTING.md](CONTRIBUTING.md) for checkout and editor setup. Install the
+development dependencies using distribution packages, or use an editable pip
+installation:
 
 ```sh
-# requires: pip install ".[test]" (see above)
-pytest
+python3 -m pip install -e ".[all,websockets,test]"
+```
+
+Run the checkout directly with logging:
+
+```sh
+python3 -m rols -v --log-file /tmp/rols.log   # Info-level logging
+python3 -m rols -vv --log-file /tmp/rols.log  # Debug-level logging
+```
+
+Run the test suite:
+
+```sh
+python3 -m pytest
 ```
 
 Use the same Black version as CI to avoid formatting differences between releases:
+
 ```sh
 python3 -m pip install black==25.11.0
 python3 -m black .
 ```
 
 Check formatting without changing files:
+
 ```sh
 python3 -m black --check .
 ```
 
-After adding configuration options to `schema.json`, refresh the `CONFIGURATION.md` file with
+After changing the configuration schema, regenerate its Markdown documentation:
 
+```sh
+python3 scripts/jsonschema2md.py rols/config/schema.json CONFIGURATION.md
 ```
-python scripts/jsonschema2md.py rols/config/schema.json CONFIGURATION.md
-```
 
-## License
+For cancellation and responsiveness checks, see
+[docs/cancellation-testing.md](docs/cancellation-testing.md).
 
-This project is made available under the MIT License.
+## Licence
+
+This project is available under the [MIT licence](LICENSE).
