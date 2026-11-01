@@ -28,7 +28,11 @@ from rols.plugins.rope_autoimport import (
 )
 from rols.workspace import Workspace
 from test.test_notebook_document import wait_for_condition
-from test.test_utils import send_initialize_request, send_notebook_did_open
+from test.test_utils import (
+    CALL_TIMEOUT_IN_SECONDS,
+    send_initialize_request,
+    send_notebook_did_open,
+)
 
 DOC_URI = uris.from_fs_path(__file__)
 
@@ -384,6 +388,81 @@ def test_autoimport_code_actions_get_correct_module_name(
     module_name = get_name_or_module(doc, diagnostic)
     autoimport_workspace.rm_document(DOC_URI)
     assert module_name == "os"
+
+
+def test_autoimport_code_actions_accept_cursor_only_range(client_server_pair, tmp_path):
+    """Neovim's cursor-only range must not suppress diagnostic-based fixes."""
+    client, server = client_server_pair
+    source = "os.path.join('a', 'b')\n"
+    path = tmp_path / "sample.py"
+    path.write_text(source, encoding="utf-8")
+    doc_uri = uris.from_fs_path(str(path))
+    settings = {"rols": {"plugins": {"rope_autoimport": {"enabled": True}}}}
+    autoimport_cache = AutoimportCache()
+    with (
+        patch("rols.plugins.rope_autoimport.cache", autoimport_cache),
+        patch.object(autoimport_cache, "reload_cache"),
+        patch.object(server, "lint"),
+    ):
+        # Suppress automatic environment-wide indexing, not action generation.
+        client._endpoint.request(
+            "initialize",
+            {
+                "rootUri": uris.from_fs_path(str(tmp_path)),
+                "initializationOptions": settings,
+            },
+        ).result(timeout=CALL_TIMEOUT_IN_SECONDS)
+        client._endpoint.notify("initialized", {})
+
+        def index_os():
+            autoimport = server.workspace._rope_autoimport(
+                server.config.settings().get("rope", {}), memory=True
+            )
+            autoimport.generate_modules_cache(modules=["os"], single_thread=True)
+
+        server._endpoint.run_on_worker(index_os)
+        client._endpoint.notify(
+            "textDocument/didOpen",
+            {
+                "textDocument": {
+                    "uri": doc_uri,
+                    "languageId": "python",
+                    "version": 1,
+                    "text": source,
+                }
+            },
+        )
+        ranges = [
+            {"start": position(0, 1), "end": position(0, 1)},
+            {"start": position(0, 0), "end": position(0, 2)},
+            {"start": position(0, 0), "end": position(0, len(source.rstrip()))},
+        ]
+        actions_by_range = []
+        for requested_range in ranges:
+            params = {
+                "textDocument": {"uri": doc_uri},
+                "range": requested_range,
+                "context": make_context("os", 0, 0, 2),
+            }
+            response = client._endpoint.request("textDocument/codeAction", params)
+            actions = response.result(timeout=CALL_TIMEOUT_IN_SECONDS)
+            assert any(contains_autoimport_quickfix(action, "os") for action in actions)
+            quick_fix = next(
+                action for action in actions if action["title"] == "import os"
+            )
+            assert quick_fix["kind"] == "quickfix"
+            assert quick_fix["edit"]["changes"][doc_uri] == [
+                {
+                    "range": {"start": position(0, 0), "end": position(0, 0)},
+                    "newText": "import os\n",
+                }
+            ]
+            actions_by_range.append(actions)
+
+            params["context"] = {"diagnostics": []}
+            response = client._endpoint.request("textDocument/codeAction", params)
+            assert response.result(timeout=CALL_TIMEOUT_IN_SECONDS) == []
+        assert actions_by_range[0] == actions_by_range[1] == actions_by_range[2]
 
 
 def make_context(module_name, line, character_start, character_end):
